@@ -13,9 +13,8 @@ Neva MT324
 Автоматическая авторизация в счетчике.
 Интеграция с Home Assistant через ESPHome.
 Поддерживаемые счетчики
-Тестировалось на:
+Тестировалось на: Нева МТ 324 AR 1.0
 
-Нева МТ 324 AR 1.0 (Tariff 2.0)
 Возможно работает с другими моделями серии Нева МТ (314, 323), поддерживающими протокол OBIS-Z.
 <img width="610" height="566" alt="neva324" src="https://github.com/user-attachments/assets/63081c07-e093-4cd7-9f60-cef4df3b492d" />
 ![uart_ttl_to_rs485_two-way_converter_06](https://github.com/user-attachments/assets/bc24653a-bb71-49cc-9d7e-c6466fe1d471)
