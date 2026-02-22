@@ -18,3 +18,4 @@ Neva MT324
 Нева МТ 324 AR 1.0 (Tariff 2.0)
 Возможно работает с другими моделями серии Нева МТ (314, 323), поддерживающими протокол OBIS-Z.
 ![uart_ttl_to_rs485_two-way_converter_06](https://github.com/user-attachments/assets/974f3b2d-2867-4455-b4de-abccbe7db67e)
+<img width="610" height="566" alt="neva324" src="https://github.com/user-attachments/assets/64b8874d-5e79-4849-a875-682a2ab0e43f" />
