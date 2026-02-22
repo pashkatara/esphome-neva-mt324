@@ -32,3 +32,4 @@ A+ (Line A)
 B- (Line B)
 Схема (ESP32 + MAX485)
 ESP32 RS485 Module Счетчик (Meter)
+<img width="658" height="867" alt="Screenshot_8" src="https://github.com/user-attachments/assets/77957205-1ffd-4acd-b56d-39694588916f" />
