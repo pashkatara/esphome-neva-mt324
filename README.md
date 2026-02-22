@@ -31,6 +31,8 @@ B- (Line B)
 Схема (ESP32 + MAX485)
 ESP32 RS485 Module Счетчик (Meter)
 <img width="658" height="867" alt="Screenshot_8" src="https://github.com/user-attachments/assets/77957205-1ffd-4acd-b56d-39694588916f" />
+<img width="1147" height="716" alt="Screenshot_9" src="https://github.com/user-attachments/assets/5a0ae6af-4c5b-430e-98a9-3f44e483ac2c" />
+
 
 
 *Примечание:* Если используете готовый модуль с автоматическим направлением (Auto-direction), пин DE/RE подключать не нужно. В коде используется программное управление, но для многих модулей (вроде тех, что на базе MAX3485 с транзистором) достаточно просто замкнуть DE и RE на VCC (режим постоянной передачи, так как счетчик отвечает редко, но это может вызывать коллизии). Рекомендуется управление пином.
