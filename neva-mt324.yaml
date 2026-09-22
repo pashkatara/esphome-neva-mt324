@@ -1,106 +1,125 @@
+substitutions:
+  name: "neva-meter"
+  friendly_name: "Счётчик Нева МТ 324"
+  rx_pin: "GPIO4"
+  tx_pin: "GPIO5"
+  update_interval: "15s"
+
 esphome:
-  name: neva-meter
-  comment: "Счетчик Нева МТ 324 (RS485)"
+  name: ${name}
+  friendly_name: ${friendly_name}
+  comment: "Считыватель электросчётчика Нева МТ 324 (RS-485)"
 
 esp32:
   board: esp32dev
   framework:
     type: arduino
 
+# Включение нативного API Home Assistant
+api:
+
+# Беспроводное обновление прошивки (OTA)
+ota:
+  - platform: esphome
+
 logger:
   level: DEBUG
-  baud_rate: 0 # Отключаем логгер на UART0, чтобы не мешать
+  baud_rate: 0 # Отключаем вывод в UART0 во избежание конфликтов
 
-# Настройка WiFi (замените на свои данные)
+# Настройка Wi-Fi
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
   ap:
-    ssid: "Neva Meter Fallback"
-    password: "12345678"
+    ssid: "Neva-Meter-Fallback"
+    password: "fallbackpassword"
 
 captive_portal:
 
-# Web Server для отладки (можно убрать в продакшене)
+# Встроенный веб-сервер для локальной отладки
 web_server:
   port: 80
 
-# НАСТРОЙКА UART
-# Обратите внимание на нестандартные параметры: 7 бит, четность Even
+# Настройка интерфейса UART для RS-485
+# Протокол IEC 62056-21: 9600 бод, 7 бит данных, чётность EVEN, 1 стоп-бит
 uart:
   id: uart_bus
-  tx_pin: GPIO5
-  rx_pin: GPIO4
+  tx_pin: ${tx_pin}
+  rx_pin: ${rx_pin}
   baud_rate: 9600
   data_bits: 7
   parity: EVEN
   stop_bits: 1
 
-# СЕНСОРЫ
+# Определение сенсоров для Home Assistant
 sensor:
-  # --- НАПРЯЖЕНИЯ ---
+  # --- НАПРЯЖЕНИЕ ПО ФАЗАМ (V) ---
   - platform: template
-    name: "Напряжение L1"
+    name: "Напряжение Фаза L1"
     id: v_l1
     unit_of_measurement: "V"
     accuracy_decimals: 1
     device_class: voltage
+    state_class: measurement
+    icon: "mdi:lightning-bolt"
+
   - platform: template
-    name: "Напряжение L2"
+    name: "Напряжение Фаза L2"
     id: v_l2
     unit_of_measurement: "V"
     accuracy_decimals: 1
     device_class: voltage
+    state_class: measurement
+    icon: "mdi:lightning-bolt"
+
   - platform: template
-    name: "Напряжение L3"
+    name: "Напряжение Фаза L3"
     id: v_l3
     unit_of_measurement: "V"
     accuracy_decimals: 1
     device_class: voltage
-    
-  # --- ТОКИ ---
+    state_class: measurement
+    icon: "mdi:lightning-bolt"
+
+  # --- СИЛА ТОКА ПО ФАЗАМ (A) ---
   - platform: template
-    name: "Ток L1"
+    name: "Ток Фаза L1"
     id: i_l1
     unit_of_measurement: "A"
     accuracy_decimals: 2
     device_class: current
+    state_class: measurement
+    icon: "mdi:current-ac"
+
   - platform: template
-    name: "Ток L2"
+    name: "Ток Фаза L2"
     id: i_l2
     unit_of_measurement: "A"
     accuracy_decimals: 2
     device_class: current
+    state_class: measurement
+    icon: "mdi:current-ac"
+
   - platform: template
-    name: "Ток L3"
+    name: "Ток Фаза L3"
     id: i_l3
     unit_of_measurement: "A"
     accuracy_decimals: 2
     device_class: current
+    state_class: measurement
+    icon: "mdi:current-ac"
 
-  # --- МОЩНОСТЬ ---
+  # --- МОЩНОСТЬ (W) ---
   - platform: template
-    name: "Суммарная мощность"
+    name: "Суммарная активная мощность"
     id: p_total
     unit_of_measurement: "W"
     accuracy_decimals: 0
     device_class: power
-    
-  # --- ЭНЕРГИЯ (ТАРИФЫ) ---
-  - platform: template
-    name: "Энергия Т1"
-    id: energy_t1
-    unit_of_measurement: "kWh"
-    accuracy_decimals: 2
-    device_class: energy
-    state_class: total_increasing
-  - platform: template
-    name: "Энергия Т2"
-    id: energy_t2
-    unit_of_measurement: "kWh"
-    accuracy_decimals: 2
-    device_class: energy
-    state_class: total_increasing
+    state_class: measurement
+    icon: "mdi:flash"
+
+  # --- ЭНЕРГИЯ И ТАРИФЫ (kWh) ---
   - platform: template
     name: "Энергия Всего"
     id: energy_total
@@ -108,13 +127,32 @@ sensor:
     accuracy_decimals: 2
     device_class: energy
     state_class: total_increasing
+    icon: "mdi:counter"
 
-# ЛОГИКА ОПРОСА
+  - platform: template
+    name: "Энергия Тариф Т1 (День)"
+    id: energy_t1
+    unit_of_measurement: "kWh"
+    accuracy_decimals: 2
+    device_class: energy
+    state_class: total_increasing
+    icon: "mdi:weather-sunny"
+
+  - platform: template
+    name: "Энергия Тариф Т2 (Ночь)"
+    id: energy_t2
+    unit_of_measurement: "kWh"
+    accuracy_decimals: 2
+    device_class: energy
+    state_class: total_increasing
+    icon: "mdi:weather-night"
+
+# ЛОГИКА ЦИКЛИЧЕСКОГО ОПРОСА СЧЁТЧИКА
 interval:
-  - interval: 10s
+  - interval: ${update_interval}
     then:
       - lambda: |-
-          // --- Вспомогательные функции ---
+          // Очистка буфера UART
           auto flush_wait = [&]() { 
             delay(50); 
             while(id(uart_bus).available()) { 
@@ -124,18 +162,19 @@ interval:
             } 
           };
           
+          // Чтение входящего пакета с тайм-аутом
           auto read_packet = [&](int timeout_ms) -> std::vector<uint8_t> {
             std::vector<uint8_t> data;
             uint32_t start = millis();
-            while (millis() - start < timeout_ms) {
+            while (millis() - start < (uint32_t)timeout_ms) {
               if (id(uart_bus).available()) {
                 uint8_t b;
                 id(uart_bus).read_byte(&b);
                 data.push_back(b);
-                // 0x03 - символ окончания пакета
+                // 0x03 - символ конца пакета (ETX)
                 if (b == 0x03) {
                   delay(20); 
-                  // Считываем CRC (последний байт)
+                  // Считывание контрольной суммы (BCC)
                   if (id(uart_bus).available()) id(uart_bus).read_byte(&b);
                   break;
                 }
@@ -144,27 +183,28 @@ interval:
             return data;
           };
           
+          // Расчёт контрольной суммы XOR
           auto calc_crc = [&](const uint8_t *data, size_t len) -> uint8_t {
             uint8_t crc = 0;
             for (size_t i = 0; i < len; i++) crc ^= data[i];
             return crc;
           };
 
-          // Функция отправки запроса по OBIS-коду
+          // Отправка запроса по коду OBIS и получение числового значения
           auto send_request = [&](std::string obis_code) -> float {
              std::vector<uint8_t> req_payload;
              req_payload.push_back('R');
              req_payload.push_back('1');
-             req_payload.push_back(0x02); 
+             req_payload.push_back(0x02); // STX
              for(char c : obis_code) req_payload.push_back(c);
              req_payload.push_back('(');
              req_payload.push_back(')');
-             req_payload.push_back(0x03); 
+             req_payload.push_back(0x03); // ETX
              
              uint8_t req_crc = calc_crc(req_payload.data(), req_payload.size());
              
              std::vector<uint8_t> full_req;
-             full_req.push_back(0x01); // Start byte
+             full_req.push_back(0x01); // SOH
              full_req.insert(full_req.end(), req_payload.begin(), req_payload.end());
              full_req.push_back(req_crc);
              
@@ -179,38 +219,37 @@ interval:
              
              if (start_p != std::string::npos && end_p != std::string::npos && end_p > start_p) {
                 std::string val = s.substr(start_p + 1, end_p - start_p - 1);
-                ESP_LOGD("Neva", "Read %s -> %s", obis_code.c_str(), val.c_str());
+                ESP_LOGD("Neva", "Успешный ответ %s -> %s", obis_code.c_str(), val.c_str());
                 return atof(val.c_str());
              }
-             ESP_LOGW("Neva", "Failed to read %s", obis_code.c_str());
+             ESP_LOGW("Neva", "Ошибка чтения OBIS-кода %s", obis_code.c_str());
              return 0.0;
           };
 
-          // --- ОСНОВНОЙ ЦИКЛ СЕАНСА ---
-          ESP_LOGI("Neva", "--- START SESSION ---");
+          // --- СТАРТ СЕАНСА СВЯЗИ С НЕДВИЖИМЫМ СЧЁТЧИКОМ ---
+          ESP_LOGI("Neva", "=== Запуск опроса Нева МТ 324 ===");
           
-          // 1. Инициализация
+          // 1. Инициализация (Запрос идентификации /?!\r\n)
           flush_wait();
           id(uart_bus).write_str("/?!\r\n");
           
-          // Ждем идентификацию
           uint32_t start = millis();
           while (millis() - start < 500) {
              if (id(uart_bus).available()) {
-               uint8_t b;
-               id(uart_bus).read_byte(&b);
-               if (b == '\n') break;
+                uint8_t b;
+                id(uart_bus).read_byte(&b);
+                if (b == '\n') break;
              }
           }
           
-          // 2. Переключение скорости (Option Select)
+          // 2. Переключение режима и скорости (ACK 0 5 1 \r\n)
           flush_wait();
           uint8_t switch_cmd[] = {0x06, '0', '5', '1', 0x0D, 0x0A}; 
           id(uart_bus).write_array(switch_cmd, 6);
           delay(500); 
           flush_wait(); 
 
-          // 3. Авторизация (Password P1)
+          // 3. Авторизация (Пароль P1 00000000)
           uint8_t auth_payload[] = {'P', '1', 0x02, '(', '0', '0', '0', '0', '0', '0', '0', '0', ')', 0x03};
           uint8_t auth_crc = calc_crc(auth_payload, 14);
           
@@ -225,33 +264,26 @@ interval:
           if(id(uart_bus).available()) id(uart_bus).read_byte(&ack);
           
           if (ack == 0x06) {
-             ESP_LOGI("Neva", "Auth Success!");
+             ESP_LOGI("Neva", "Авторизация в счётчике успешна!");
              flush_wait();
 
-             // --- ЧТЕНИЕ МГНОВЕННЫХ ЗНАЧЕНИЙ ---
+             // --- СЧИТЫВАНИЕ МГНОВЕННЫХ ЗНАЧЕНИЙ ---
              
-             // Напряжения (V)
-             // L1: OBIS 20.7.0 (Hex 20)
-             id(v_l1).publish_state(send_request("200700FF"));
-             // L2: OBIS 52.7.0 (Hex 34)
-             id(v_l2).publish_state(send_request("340700FF"));
-             // L3: OBIS 72.7.0 (Hex 48)
-             id(v_l3).publish_state(send_request("480700FF"));
+             // Напряжение по фазам (В)
+             id(v_l1).publish_state(send_request("200700FF")); // L1 (20.7.0)
+             id(v_l2).publish_state(send_request("340700FF")); // L2 (52.7.0)
+             id(v_l3).publish_state(send_request("480700FF")); // L3 (72.7.0)
 
-             // Токи (A)
-             // L1: OBIS 31.7.0 (Hex 1F)
-             id(i_l1).publish_state(send_request("1F0700FF"));
-             // L2: OBIS 51.7.0 (Hex 33)
-             id(i_l2).publish_state(send_request("330700FF"));
-             // L3: OBIS 71.7.0 (Hex 47)
-             id(i_l3).publish_state(send_request("470700FF"));
+             // Сила тока по фазам (А)
+             id(i_l1).publish_state(send_request("1F0700FF")); // L1 (31.7.0)
+             id(i_l2).publish_state(send_request("330700FF")); // L2 (51.7.0)
+             id(i_l3).publish_state(send_request("470700FF")); // L3 (71.7.0)
 
-             // Мощность (W)
-             // Total: OBIS 16.7.0 (Hex 10)
-             id(p_total).publish_state(send_request("100700FF"));
+             // Суммарная мощность (Вт)
+             id(p_total).publish_state(send_request("100700FF")); // Total (16.7.0)
 
-             // --- ЧТЕНИЕ ТАРИФОВ ---
-             // Запрос на массив значений (OBIS 15.8.0)
+             // --- СЧИТЫВАНИЕ ТАРИФОВ ЭНЕРГИИ ---
+             // Запрос массива тарифов (OBIS 15.8.0)
              std::vector<uint8_t> tariff_req;
              tariff_req.push_back('R');
              tariff_req.push_back('1');
@@ -279,15 +311,13 @@ interval:
              size_t t_end = t_str.find(')');
              
              if (t_start != std::string::npos && t_end != std::string::npos && t_end > t_start) {
-                 // Парсинг строки: "Total,T1,T2,..."
+                 // Парсинг ответа: "Total,T1,T2,..."
                  std::string vals = t_str.substr(t_start + 1, t_end - t_start - 1);
                  std::vector<std::string> tokens;
                  size_t pos = 0;
                  std::string delimiter = ",";
-                 std::string token;
                  while ((pos = vals.find(delimiter)) != std::string::npos) {
-                     token = vals.substr(0, pos);
-                     tokens.push_back(token);
+                     tokens.push_back(vals.substr(0, pos));
                      vals.erase(0, pos + delimiter.length());
                  }
                  tokens.push_back(vals);
@@ -299,7 +329,8 @@ interval:
                  }
              }
              flush_wait();
+             ESP_LOGI("Neva", "=== Опрос успешно завершён ===");
 
           } else {
-             ESP_LOGE("Neva", "Auth Failed! Check wiring or password.");
+             ESP_LOGE("Neva", "Ошибка авторизации в счётчике! Проверьте клеммы A/B и параметры RS-485.");
           }
